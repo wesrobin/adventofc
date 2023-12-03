@@ -33,7 +33,6 @@ func main() {
 func part1(inp string) any {
 	var sum int
 	lines := strings.Split(inp, "\n")
-	var numGroups []int
 	for y := 0; y < len(lines); y++ {
 		var (
 			num string
@@ -41,7 +40,6 @@ func part1(inp string) any {
 		)
 		for x := 0; x < len(lines[y]); x++ {
 			curr := rune(lines[y][x])
-			//fmt.Println("rune", string(curr))
 			if unicode.IsDigit(curr) {
 				num += string(curr)
 				if !adj && checkAdj(lines, x, y) {
@@ -49,7 +47,6 @@ func part1(inp string) any {
 				}
 			} else if num != "" {
 				if adj {
-					numGroups = append(numGroups, adventofc2023.Atoi(num))
 					sum += adventofc2023.Atoi(num)
 				}
 				num = ""
@@ -57,29 +54,24 @@ func part1(inp string) any {
 			}
 		}
 		if num != "" && adj {
-			numGroups = append(numGroups, adventofc2023.Atoi(num))
 			sum += adventofc2023.Atoi(num)
 		}
 	}
-	//fmt.Println(numGroups)
 	return sum
 }
 
 func checkAdj(lines []string, x int, y int) bool {
 	xLower, xUpper := int(math.Max(float64(x-1), 0)), int(math.Min(float64(x+1), float64(len(lines[0])-1)))
 	yLower, yUpper := int(math.Max(float64(y-1), 0)), int(math.Min(float64(y+1), float64(len(lines)-1)))
-	//fmt.Println("checking", xLower, xUpper, ";", yLower, yUpper)
 	for yIdx := yLower; yIdx <= yUpper; yIdx++ {
 		line := ""
 		for xIdx := xLower; xIdx <= xUpper; xIdx++ {
 			curr := rune(lines[yIdx][xIdx])
 			line += string(curr)
 			if curr != '.' && !unicode.IsDigit(curr) {
-				//fmt.Println("true", line, xIdx, yIdx)
 				return true
 			}
 		}
-		//fmt.Println("l", line)
 	}
 	return false
 }

@@ -34,7 +34,7 @@ func part1(inp string) int {
 			for _, d := range draw {
 				str := strings.Split(d, " ")
 				n, c := str[0], str[1]
-				nInt := adventofc2023.Atoi(n)
+				nInt := adventofc2023.Atoi64(n)
 				if c == "red" && nInt > 12 {
 					valid = false
 					break
@@ -65,7 +65,7 @@ func part2(inp string) int64 {
 			for _, d := range draw {
 				str := strings.Split(d, " ")
 				n, c := str[0], str[1]
-				nInt := adventofc2023.Atoi(n)
+				nInt := adventofc2023.Atoi64(n)
 				if c == "red" && (nInt > mins[0]) {
 					mins[0] = nInt
 					continue

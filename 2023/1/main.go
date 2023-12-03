@@ -61,7 +61,7 @@ func part1() int64 {
 				break
 			}
 		}
-		tot += adventofc2023.Atoi(num)
+		tot += adventofc2023.Atoi64(num)
 	}
 	return tot
 }
@@ -149,7 +149,7 @@ func part2() int64 {
 				}
 			}
 		}
-		tot += adventofc2023.Atoi(num)
+		tot += adventofc2023.Atoi64(num)
 	}
 	return tot
 }

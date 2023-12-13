@@ -36,6 +36,10 @@ func MapSlice[T1, T2 any](s []T1, fn func(T1) T2) []T2 {
 	return res
 }
 
+func MapIntsToStr(ss []string) []int {
+	return MapSlice(ss, Atoi)
+}
+
 // MapSliceErr is similar to MapSliceErr, except it will return an error state if the loop had a failure.
 // This is useful when converting something like protobuf files to normal go structs, the protocp convert methods all
 // return errors.
@@ -65,4 +69,34 @@ func CutRight(s, cut string) string {
 func CutLeft(s, cut string) string {
 	res, _, _ := strings.Cut(s, cut)
 	return res
+}
+
+type Stack[T any] []T
+
+func (s *Stack[T]) Push(elem T) {
+	*s = append(*s, elem)
+}
+
+func (s *Stack[T]) Pop() (T, bool) {
+	if len(*s) == 0 {
+		return *(new(T)), false
+	}
+	e := (*s)[len(*s)-1]
+	*s = (*s)[:len(*s)-1]
+	return e, true
+}
+
+func (s *Stack[T]) Top() (T, bool) {
+	return s.Peek(0)
+}
+
+func (s *Stack[T]) Peek(depth int) (T, bool) {
+	if len(*s) == 0 || depth >= len(*s) {
+		return *(new(T)), false
+	}
+	return (*s)[len(*s)-1-depth], true
+}
+
+func NewStack[T any]() *Stack[T] {
+	return &Stack[T]{}
 }

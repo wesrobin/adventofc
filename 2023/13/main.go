@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
+	"time"
 
 	aoc "github.com/wesrobin/adventofc/2023"
 )
@@ -12,8 +13,12 @@ import (
 var input string
 
 func main() {
-	//part1()
+	t0 := time.Now()
+	part1()
+	fmt.Println(time.Since(t0))
+	t0 = time.Now()
 	part2()
+	fmt.Println(time.Since(t0))
 }
 
 const testInput1 = `#.##..##.
@@ -136,12 +141,9 @@ func part2() {
 		}
 		if n, ok := try2(lines); ok {
 			sum += 100 * n
-			printLines(lines, n-1)
 		} else if n, ok := try2(cols); ok {
 			sum += n
-			printLines(cols, n-1)
 		}
-		fmt.Println()
 	}
 	fmt.Println(sum)
 

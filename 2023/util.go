@@ -19,8 +19,59 @@ type Coord2D struct {
 	X, Y int
 }
 
+func (c Coord2D) WithinPositive(xMax, yMax int) bool {
+	return c.X >= 0 && c.Y >= 0 && c.X < xMax && c.Y < yMax
+}
+
 type Coord3D struct {
 	X, Y, Z int
+}
+
+type Dir int
+
+const (
+	Up    Dir = 0
+	Left  Dir = 1
+	Down  Dir = 2
+	Right Dir = 3
+)
+
+func (d Dir) Invert() Dir {
+	return (d + 2) % 4
+}
+
+func (d Dir) String() string {
+	switch d {
+	case Up:
+		return "up"
+	case Left:
+		return "le"
+	case Down:
+		return "do"
+	case Right:
+		return "ri"
+	}
+	return "none"
+}
+
+func PrevCoord(c Coord2D, d Dir) Coord2D {
+	return NextCoord(c, d.Invert())
+}
+
+func NextCoord(c Coord2D, d Dir) Coord2D {
+	x := c.X
+	y := c.Y
+	switch d {
+	case Up:
+		y -= 1
+	case Left:
+		x -= 1
+	case Down:
+		y += 1
+	case Right:
+		x += 1
+	}
+	return Coord2D{X: x, Y: y}
 }
 
 // MapSlice accepts a slice of type T1 and returns a slice of type T2, executing fn on each

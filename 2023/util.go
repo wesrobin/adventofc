@@ -54,6 +54,20 @@ func (d Dir) String() string {
 	return "none"
 }
 
+func (d Dir) Char() rune {
+	switch d {
+	case Up:
+		return '^'
+	case Left:
+		return '<'
+	case Down:
+		return 'v'
+	case Right:
+		return '>'
+	}
+	return '?'
+}
+
 func PrevCoord(c Coord2D, d Dir) Coord2D {
 	return NextCoord(c, d.Invert())
 }

@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	_ "embed"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -21,7 +22,9 @@ func main() {
 	t0 := time.Now()
 	part1()
 	fmt.Println(time.Since(t0))
-	// part2()
+	t0 = time.Now()
+	part2() // 1243 H, 1227 H (same as someone else), 1219
+	fmt.Println(time.Since(t0))
 }
 
 const testInput1 = `2413432311323
@@ -49,6 +52,12 @@ const testInput3 = `123
 const testInput4 = `24134
 32154`
 
+const testInput5 = `111111111111
+999999999991
+999999999991
+999999999991
+999999999991`
+
 func part1() {
 	//inp := testInput1
 	inp := input()
@@ -61,12 +70,23 @@ func part1() {
 			costGrid[y] = append(costGrid[y], aoc.Atoi(string(c)))
 		}
 	}
+	down := pathStep{
+		c:     aoc.Coord2D{},
+		depth: 1,
+		dir:   aoc.Down,
+	}
+	right := pathStep{
+		c:     aoc.Coord2D{},
+		depth: 1,
+		dir:   aoc.Right,
+	}
 
-	populateCosts(grid)
+	populateCosts(grid, down, right)
 }
 
 type traversal struct {
 	last pathStep
+	hist map[aoc.Coord2D]rune
 }
 
 type TraversalQueue []*traversal
@@ -97,26 +117,15 @@ func (t TraversalQueue) Swap(i, j int) {
 	t[i], t[j] = t[j], t[i]
 }
 
-func populateCosts(grid [][]int) {
-	start := aoc.Coord2D{}
+func populateCosts(grid [][]int, start1, start2 pathStep) {
 	end := aoc.Coord2D{X: len(grid[0]) - 1, Y: len(grid) - 1}
-	down := pathStep{
-		c:     start,
-		depth: 1,
-		dir:   aoc.Down,
-	}
-	right := pathStep{
-		c:     start,
-		depth: 1,
-		dir:   aoc.Right,
-	}
 
 	// Idea: Sorting the queue _significantly_ cuts down iterations (assuming because it optimises the memoization but
 	// tbh not sure). But appending the next node and then sorting nLogn every iteration is very slow. What about smth
 	// like a BST, where insertion is logn, and we always have a sorted queue?
 	queue := TraversalQueue{}
-	queue.Push(&traversal{last: down})
-	queue.Push(&traversal{last: right})
+	queue.Push(&traversal{last: start1, hist: map[aoc.Coord2D]rune{}})
+	queue.Push(&traversal{last: start2, hist: map[aoc.Coord2D]rune{}})
 
 	heap.Init(&queue)
 
@@ -126,39 +135,56 @@ func populateCosts(grid [][]int) {
 	//}
 	seen := map[key]bool{}
 	minEnd := 1_000_000_000
-	var count int
-	t0 := time.Now()
 
 OuterLoop:
 	for len(queue) > 0 {
-		count++
-		if count%1_000_000 == 0 {
-			fmt.Println("ql", len(queue))
-			fmt.Println(time.Since(t0))
-		}
 		curr := heap.Pop(&queue).(*traversal)
+		curr.hist[curr.last.c] = curr.last.dir.Char()
 
-		for _, n := range next(curr.last, grid) {
+		var added int
+		for _, n := range next(curr.last) {
 			if !n.valid(grid) {
 				continue
 			}
+			n.cumulative = curr.last.cumulative + grid[n.c.Y][n.c.X]
 
-			if n.c == end {
+			if !curr.last.isUltra && n.c == end || curr.last.isUltra && n.c == end && n.depth > 3 {
 				if n.cumulative < minEnd {
 					minEnd = n.cumulative
 				}
+				printHist(curr.hist, grid)
 				break OuterLoop
 			}
 			if seen[n.key()] {
 				continue
 			}
 			seen[n.key()] = true
+			newHist := make(map[aoc.Coord2D]rune)
+			maps.Copy(newHist, curr.hist)
 
-			heap.Push(&queue, &traversal{last: n})
+			heap.Push(&queue, &traversal{last: n, hist: newHist})
+			added++
 		}
+		//if added == 0 {
+		//	printHist(curr.hist, grid)
+		//	fmt.Println()
+		//}
 	}
-	fmt.Println(count)
 	fmt.Println(minEnd)
+}
+
+func printHist(hist map[aoc.Coord2D]rune, grid [][]int) {
+	for y, l := range grid {
+		for x := range l {
+			c := aoc.Coord2D{X: x, Y: y}
+			if ch, ok := hist[c]; ok {
+				fmt.Print(string(ch))
+			} else {
+				fmt.Print(".")
+			}
+		}
+		fmt.Println()
+	}
 }
 
 type key struct {
@@ -172,6 +198,7 @@ type pathStep struct {
 	depth      int
 	cumulative int
 	dir        aoc.Dir
+	isUltra    bool
 }
 
 func (p pathStep) key() key {
@@ -185,13 +212,9 @@ func (p pathStep) valid(grid [][]int) bool {
 	if !p.c.WithinPositive(len(grid[0]), len(grid)) {
 		return false
 	}
-	if p.depth >= 3 {
+	if !p.isUltra && p.depth > 3 {
 		return false
-	}
-	if (p.c.X == 0 || p.c.X == len(grid[0])-1) && p.dir == aoc.Up {
-		return false
-	}
-	if (p.c.Y == 0 || p.c.Y == len(grid)-1) && p.dir == aoc.Left {
+	} else if p.isUltra && p.depth > 10 {
 		return false
 	}
 	return true
@@ -201,37 +224,61 @@ func (p pathStep) string() string {
 	return fmt.Sprintf("(%d;%d), dep:%d, cum:%d, dir:%s", p.c.X, p.c.Y, p.depth, p.cumulative, p.dir.String())
 }
 
-func next(curr pathStep, grid [][]int) []pathStep {
+func next(curr pathStep) []pathStep {
 	var ps []pathStep
-	cl := aoc.NextCoord(curr.c, (curr.dir-1+4)%4)
+
 	cs := aoc.NextCoord(curr.c, curr.dir)
-	cr := aoc.NextCoord(curr.c, (curr.dir+1+4)%4)
-	if cl.WithinPositive(len(grid[0]), len(grid)) {
+	ps = append(ps, pathStep{
+		c:       cs,
+		depth:   curr.depth + 1,
+		dir:     curr.dir,
+		isUltra: curr.isUltra,
+	})
+
+	if !curr.isUltra || curr.depth >= 4 {
+		cl := aoc.NextCoord(curr.c, (curr.dir-1+4)%4)
 		ps = append(ps, pathStep{
-			c:          cl,
-			depth:      0,
-			dir:        (curr.dir - 1 + 4) % 4,
-			cumulative: curr.cumulative + grid[cl.Y][cl.X],
+			c:       cl,
+			depth:   1,
+			dir:     (curr.dir - 1 + 4) % 4,
+			isUltra: curr.isUltra,
+		})
+		cr := aoc.NextCoord(curr.c, (curr.dir+1+4)%4)
+		ps = append(ps, pathStep{
+			c:       cr,
+			depth:   1,
+			dir:     (curr.dir + 1 + 4) % 4,
+			isUltra: curr.isUltra,
 		})
 	}
-	if cs.WithinPositive(len(grid[0]), len(grid)) {
-		ps = append(ps, pathStep{
-			c:          cs,
-			depth:      curr.depth + 1,
-			dir:        curr.dir,
-			cumulative: curr.cumulative + grid[cs.Y][cs.X],
-		})
-	}
-	if cr.WithinPositive(len(grid[0]), len(grid)) {
-		ps = append(ps, pathStep{
-			c:          cr,
-			depth:      0,
-			dir:        (curr.dir + 1 + 4) % 4,
-			cumulative: curr.cumulative + grid[cr.Y][cr.X],
-		})
-	}
+
 	return ps
 }
 
 func part2() {
+	//inp := testInput1
+	inp := input()
+	lines := strings.Split(inp, "\n")
+	grid := make([][]int, len(lines))
+	costGrid := make([][]int, len(lines))
+	for y, l := range lines {
+		for _, c := range l {
+			grid[y] = append(grid[y], aoc.Atoi(string(c)))
+			costGrid[y] = append(costGrid[y], aoc.Atoi(string(c)))
+		}
+	}
+	down := pathStep{
+		c:       aoc.Coord2D{},
+		depth:   1,
+		dir:     aoc.Down,
+		isUltra: true,
+	}
+	right := pathStep{
+		c:       aoc.Coord2D{},
+		depth:   1,
+		dir:     aoc.Right,
+		isUltra: true,
+	}
+
+	populateCosts(grid, down, right)
 }

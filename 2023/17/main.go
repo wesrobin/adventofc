@@ -1,10 +1,9 @@
 package main
 
 import (
+	"container/heap"
 	_ "embed"
 	"fmt"
-	"maps"
-	"sort"
 	"strings"
 	"time"
 
@@ -51,8 +50,8 @@ const testInput4 = `24134
 32154`
 
 func part1() {
-	inp := testInput1
-	//inp := input()
+	//inp := testInput1
+	inp := input()
 	lines := strings.Split(inp, "\n")
 	grid := make([][]int, len(lines))
 	costGrid := make([][]int, len(lines))
@@ -63,167 +62,109 @@ func part1() {
 		}
 	}
 
-	// Start from bottom right, bfs to all other nodes in the grid, and
-	// incrementally set the minimum 'cost' of that node.
-
 	populateCosts(grid)
-	//for y, l := range costGrid {
-	//	for x := range l {
-	//		fmt.Printf("%4d", costGrid[y][x])
-	//	}
-	//	fmt.Println()
-	//}
-	//fmt.Println()
-	//for y, l := range grid {
-	//	for x := range l {
-	//		fmt.Printf("%4d", grid[y][x])
-	//	}
-	//	fmt.Println()
-	//}
-
-	// seen := make(map[pathStep]int)
-	// weight, path := findPath(grid, seen,
-	// 	pathStep{c: aoc.Coord2D{X: 0, Y: 0}, dir: aoc.Down, depth: 0},
-	// 	grid[0][0], []pathStep{})
-	// fmt.Println(weight)
-}
-
-func dfSearch(grid [][]int, path []pathStep, curr pathStep, seen map[aoc.Coord2D]bool) int {
-	return 0
 }
 
 type traversal struct {
 	last pathStep
-	seen map[aoc.Coord2D]bool // Can we remove and replace with a memoizer
 }
 
-//	func (t *traversal) last() pathStep {
-//		return t.steps[len(t.steps)-1]
-//	}
+type TraversalQueue []*traversal
 
-func (t *traversal) duplicate() traversal {
-	var cp traversal
-	cp.last = t.last
-	cp.seen = maps.Clone(t.seen)
-	return cp
+func (t *TraversalQueue) Push(x any) {
+	item := x.(*traversal)
+	*t = append(*t, item)
 }
 
-//
-//func (t *traversal) string() string {
-//	var s []string
-//	for _, step := range t.steps {
-//		s = append(s, step.string())
-//	}
-//	return strings.Join(s, " -> ")
-//}
+func (t *TraversalQueue) Pop() any {
+	old := *t
+	n := len(old)
+	item := old[n-1]
+	old[n-1] = nil
+	*t = old[0 : n-1]
+	return item
+}
+
+func (t TraversalQueue) Len() int {
+	return len(t)
+}
+
+func (t TraversalQueue) Less(i, j int) bool {
+	return t[i].last.cumulative < t[j].last.cumulative
+}
+
+func (t TraversalQueue) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
+}
 
 func populateCosts(grid [][]int) {
 	start := aoc.Coord2D{}
 	end := aoc.Coord2D{X: len(grid[0]) - 1, Y: len(grid) - 1}
 	down := pathStep{
-		c:          start,
-		depth:      1,
-		cumulative: grid[0][0],
-		dir:        aoc.Down,
+		c:     start,
+		depth: 1,
+		dir:   aoc.Down,
 	}
 	right := pathStep{
-		c:          start,
-		depth:      1,
-		cumulative: grid[0][0],
-		dir:        aoc.Right,
+		c:     start,
+		depth: 1,
+		dir:   aoc.Right,
 	}
 
 	// Idea: Sorting the queue _significantly_ cuts down iterations (assuming because it optimises the memoization but
 	// tbh not sure). But appending the next node and then sorting nLogn every iteration is very slow. What about smth
 	// like a BST, where insertion is logn, and we always have a sorted queue?
-	queue := []traversal{
-		{last: down, seen: map[aoc.Coord2D]bool{}},
-		{last: right, seen: map[aoc.Coord2D]bool{}},
-	}
-	minAt := map[string]int{
-		down.key():  grid[0][0],
-		right.key(): grid[0][0],
-	}
+	queue := TraversalQueue{}
+	queue.Push(&traversal{last: down})
+	queue.Push(&traversal{last: right})
+
+	heap.Init(&queue)
+
+	//minAt := map[key]int{
+	//	down.key():  grid[0][0],
+	//	right.key(): grid[0][0],
+	//}
+	seen := map[key]bool{}
 	minEnd := 1_000_000_000
 	var count int
 	t0 := time.Now()
+
+OuterLoop:
 	for len(queue) > 0 {
 		count++
 		if count%1_000_000 == 0 {
 			fmt.Println("ql", len(queue))
 			fmt.Println(time.Since(t0))
 		}
-		curr := queue[0]
-		queue = queue[1:]
-		if curr.seen[curr.last.c] {
-			continue
-		} else {
-			curr.seen[curr.last.c] = true
-		}
-		//fmt.Println(curr.string())
+		curr := heap.Pop(&queue).(*traversal)
 
 		for _, n := range next(curr.last, grid) {
 			if !n.valid(grid) {
 				continue
 			}
-			if v, ok := minAt[n.key()]; ok && v < n.cumulative {
-				continue
-			} else {
-				minAt[n.key()] = n.cumulative
-			}
+
 			if n.c == end {
-				fmt.Println("ma", n.cumulative)
-				minEnd = min(minEnd, n.cumulative)
+				if n.cumulative < minEnd {
+					minEnd = n.cumulative
+				}
+				break OuterLoop
+			}
+			if seen[n.key()] {
 				continue
 			}
-			nt := curr.duplicate()
-			nt.last = n
-			queue = append(queue, nt)
+			seen[n.key()] = true
+
+			heap.Push(&queue, &traversal{last: n})
 		}
-		sort.Slice(queue, func(i, j int) bool {
-			return queue[i].last.cumulative < queue[j].last.cumulative
-		})
 	}
-	//for y, l := range grid {
-	//	for x := range l {
-	//		fmt.Printf("%4d", minAt[aoc.Coord2D{x, y}])
-	//	}
-	//	fmt.Println()
-	//}
-	//fmt.Println()
 	fmt.Println(count)
 	fmt.Println(minEnd)
-	//fmt.Println(minAt)
-	//type key struct {
-	//	c   aoc.Coord2D
-	//	d   aoc.Dir
-	//	dep int
-	//}
-	//minAt := make(map[key]int)
-
-	//for len(queue) > 0 {
-	//	// fmt.Println()
-	//	curr := queue[0]
-	//	// fmt.Println(curr, grid[curr.c.Y][curr.c.X])
-	//	queue = queue[1:]
-	//
-	//	newCost := grid[curr.c.Y][curr.c.X] + costGrid[prevC.Y][prevC.X]
-	//	// fmt.Println(newCost)
-	//	if unchanged(grid, costGrid, curr.c) || costGrid[curr.c.Y][curr.c.X] > newCost {
-	//		costGrid[curr.c.Y][curr.c.X] = newCost
-	//	}
-	//	for _, n := range next(curr) {
-	//		if !n.valid(grid) {
-	//			continue
-	//		}
-	//		queue = append(queue, n)
-	//	}
-	//}
 }
 
-func unchanged(grid, costGrid [][]int, c aoc.Coord2D) bool {
-	// fmt.Println("check:", grid[c.Y][c.X], costGrid[c.Y][c.X])
-	return grid[c.Y][c.X] == costGrid[c.Y][c.X]
+type key struct {
+	c     aoc.Coord2D
+	depth int
+	dir   aoc.Dir
 }
 
 type pathStep struct {
@@ -233,8 +174,8 @@ type pathStep struct {
 	dir        aoc.Dir
 }
 
-func (p pathStep) key() string {
-	return fmt.Sprintf("%d,%d,%d,%d", p.c.X, p.c.Y, p.depth, p.dir)
+func (p pathStep) key() key {
+	return key{c: aoc.Coord2D{X: p.c.X, Y: p.c.Y}, depth: p.depth, dir: p.dir}
 }
 
 func (p pathStep) valid(grid [][]int) bool {
@@ -245,6 +186,12 @@ func (p pathStep) valid(grid [][]int) bool {
 		return false
 	}
 	if p.depth >= 3 {
+		return false
+	}
+	if (p.c.X == 0 || p.c.X == len(grid[0])-1) && p.dir == aoc.Up {
+		return false
+	}
+	if (p.c.Y == 0 || p.c.Y == len(grid)-1) && p.dir == aoc.Left {
 		return false
 	}
 	return true

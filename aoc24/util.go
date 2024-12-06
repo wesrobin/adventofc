@@ -30,59 +30,79 @@ type Coord3D struct {
 type Dir int
 
 const (
-	Up    Dir = 0
-	Left  Dir = 1
-	Down  Dir = 2
-	Right Dir = 3
+	North     Dir = 1
+	West      Dir = 2
+	South     Dir = 3
+	East      Dir = 4
+	NorthWest Dir = 5
+	SouthWest Dir = 6
+	SouthEast Dir = 7
+	NorthEast Dir = 8
 )
-
-func (d Dir) Invert() Dir {
-	return (d + 2) % 4
-}
 
 func (d Dir) String() string {
 	switch d {
-	case Up:
-		return "up"
-	case Left:
-		return "le"
-	case Down:
-		return "do"
-	case Right:
-		return "ri"
+	case North:
+		return "n"
+	case West:
+		return "w"
+	case South:
+		return "s"
+	case East:
+		return "e"
+	case NorthWest:
+		return "nw"
+	case SouthWest:
+		return "sw"
+	case SouthEast:
+		return "se"
+	case NorthEast:
+		return "ne"
 	}
 	return "none"
 }
 
 func (d Dir) Char() rune {
 	switch d {
-	case Up:
+	case North:
 		return '^'
-	case Left:
+	case West:
 		return '<'
-	case Down:
+	case South:
 		return 'v'
-	case Right:
+	case East:
 		return '>'
 	}
 	return '?'
 }
 
-func PrevCoord(c Coord2D, d Dir) Coord2D {
-	return NextCoord(c, d.Invert())
-}
+//func PrevCoord(c Coord2D, d Dir) Coord2D {
+//	return NextCoord(c, d.Invert())
+//}
 
 func NextCoord(c Coord2D, d Dir) Coord2D {
 	x := c.X
 	y := c.Y
 	switch d {
-	case Up:
+	case North:
 		y -= 1
-	case Left:
+	case West:
 		x -= 1
-	case Down:
+	case South:
 		y += 1
-	case Right:
+	case East:
+		x += 1
+	case NorthWest:
+		y -= 1
+		x -= 1
+	case SouthWest:
+		y += 1
+		x -= 1
+	case SouthEast:
+		y += 1
+		x += 1
+	case NorthEast:
+		y -= 1
 		x += 1
 	}
 	return Coord2D{X: x, Y: y}
